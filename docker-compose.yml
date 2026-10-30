@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: sapi
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sapi-dev-password}
+      POSTGRES_DB: sapi
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sapi -d sapi"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  app:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm ci && npm run build && npm start"
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgres://sapi:${POSTGRES_PASSWORD:-sapi-dev-password}@db:5432/sapi
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+volumes:
+  postgres_data:
+  node_modules:
